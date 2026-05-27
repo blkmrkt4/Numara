@@ -152,12 +152,20 @@ export default async function DashboardPage() {
               ) : null}
             </p>
           </div>
-          <Link
-            href="/assets/new"
-            className="rounded-md bg-neutral-900 px-4 py-2.5 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
-          >
-            + Add asset
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/capture"
+              className="rounded-md border border-neutral-300 px-4 py-2.5 text-sm text-neutral-800 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-900"
+            >
+              Capture document
+            </Link>
+            <Link
+              href="/assets/new"
+              className="rounded-md bg-neutral-900 px-4 py-2.5 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
+            >
+              + Add asset
+            </Link>
+          </div>
         </section>
 
         {assets.length === 0 ? (

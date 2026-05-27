@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORY_LABELS, type Currency } from "@/lib/types";
 import { formatDate, formatMoney, relativeAge, todayIso } from "@/lib/format";
+import { ACCEPT_ATTRIBUTE, getSignedDocumentUrl } from "@/lib/documents";
 import { addBalance, archiveAsset, unarchiveAsset } from "./actions";
 
 export default async function AssetDetailPage({
@@ -39,10 +40,29 @@ export default async function AssetDetailPage({
 
   const { data: balances } = await supabase
     .from("balance_entries")
-    .select("id, amount, as_of_date, source, created_at")
+    .select("id, amount, as_of_date, source, source_document_id, created_at")
     .eq("asset_id", id)
     .order("as_of_date", { ascending: false })
     .order("created_at", { ascending: false });
+
+  // For balance entries that have an attached document, fetch the doc
+  // details and a short-lived signed URL so the user can re-open the source.
+  const docIds = (balances ?? [])
+    .map((b) => b.source_document_id)
+    .filter((v): v is string => Boolean(v));
+  const docMap = new Map<string, { file_name: string; storage_path: string; url: string | null }>();
+  if (docIds.length > 0) {
+    const { data: docs } = await supabase
+      .from("documents")
+      .select("id, file_name, storage_path")
+      .in("id", docIds);
+    await Promise.all(
+      (docs ?? []).map(async (d) => {
+        const url = await getSignedDocumentUrl(supabase, d.storage_path);
+        docMap.set(d.id, { file_name: d.file_name, storage_path: d.storage_path, url });
+      })
+    );
+  }
 
   const currency = asset.native_currency as Currency;
   const latest = balances?.[0];
@@ -110,30 +130,44 @@ export default async function AssetDetailPage({
             <h2 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Add balance
             </h2>
-            <form action={addBalance} className="mt-3 flex flex-wrap items-end gap-3">
+            <form action={addBalance} className="mt-3 space-y-3">
               <input type="hidden" name="asset_id" value={asset.id} />
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block text-sm text-neutral-600 dark:text-neutral-400">
+                  Amount ({currency})
+                  <input
+                    type="text"
+                    name="amount"
+                    required
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="mt-1 block w-44 rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 tabular outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
+                  />
+                </label>
+                <label className="block text-sm text-neutral-600 dark:text-neutral-400">
+                  As of
+                  <input
+                    type="date"
+                    name="as_of_date"
+                    required
+                    defaultValue={todayIso()}
+                    max={todayIso()}
+                    className="mt-1 block w-44 rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
+                  />
+                </label>
+              </div>
               <label className="block text-sm text-neutral-600 dark:text-neutral-400">
-                Amount ({currency})
+                Attach document <span className="text-neutral-400">(optional)</span>
                 <input
-                  type="text"
-                  name="amount"
-                  required
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  className="mt-1 block w-44 rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 tabular outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
+                  type="file"
+                  name="file"
+                  accept={ACCEPT_ATTRIBUTE}
+                  className="mt-1 block w-full max-w-md rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 file:mr-3 file:rounded file:border-0 file:bg-neutral-200 file:px-3 file:py-1.5 file:text-sm file:text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:file:bg-neutral-800 dark:file:text-neutral-100"
                 />
               </label>
-              <label className="block text-sm text-neutral-600 dark:text-neutral-400">
-                As of
-                <input
-                  type="date"
-                  name="as_of_date"
-                  required
-                  defaultValue={todayIso()}
-                  max={todayIso()}
-                  className="mt-1 block w-44 rounded-md border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
-                />
-              </label>
+              <p className="text-xs text-neutral-500">
+                PDF, JPEG, PNG, HEIC, XLS, XLSX, or CSV. Up to 25 MB.
+              </p>
               <button
                 type="submit"
                 className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
@@ -153,24 +187,41 @@ export default async function AssetDetailPage({
           </h2>
           {balances && balances.length > 0 ? (
             <ul className="mt-3 divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-              {balances.map((b) => (
-                <li
-                  key={b.id}
-                  className="flex items-baseline justify-between px-4 py-3 text-sm"
-                >
-                  <div>
-                    <p className="tabular text-base font-medium text-neutral-900 dark:text-neutral-100">
-                      {formatMoney(b.amount, currency)}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {formatDate(b.as_of_date)}
-                      {b.source === "manual" ? (
-                        <span className="ml-2 text-neutral-400">· manual</span>
-                      ) : null}
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {balances.map((b) => {
+                const doc = b.source_document_id ? docMap.get(b.source_document_id) : null;
+                return (
+                  <li
+                    key={b.id}
+                    className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="tabular text-base font-medium text-neutral-900 dark:text-neutral-100">
+                        {formatMoney(b.amount, currency)}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {formatDate(b.as_of_date)}
+                        {b.source === "manual" ? (
+                          <span className="ml-2 text-neutral-400">· manual</span>
+                        ) : null}
+                      </p>
+                    </div>
+                    {doc ? (
+                      doc.url ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-neutral-600 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                        >
+                          {doc.file_name}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-neutral-400">{doc.file_name}</span>
+                      )
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mt-3 text-sm text-neutral-500">No balances yet.</p>
