@@ -194,7 +194,9 @@ export default async function DashboardPage() {
 
         {profile?.is_system_admin ? (
           <p className="mt-16 text-xs text-neutral-400">
-            Admin tools are not yet available.
+            <Link href="/admin/settings" className="underline hover:text-neutral-600">
+              Admin
+            </Link>
           </p>
         ) : null}
       </main>
