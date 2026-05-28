@@ -1,30 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ACCEPTED_MIME, MAX_BYTES } from "@/lib/document-constants";
 
-export const MAX_BYTES = 26_214_400; // 25 MB
-
-export const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": "pdf",
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "application/vnd.ms-excel": "xls",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-  "text/csv": "csv",
-};
-
-export const ACCEPT_ATTRIBUTE = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/heic",
-  ".heif",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/csv",
-].join(",");
+// Re-export the client-safe constants so existing imports keep working.
+export { ACCEPTED_MIME, MAX_BYTES, ACCEPT_ATTRIBUTE } from "@/lib/document-constants";
 
 export type UploadResult =
   | { ok: true; documentId: string; storagePath: string }

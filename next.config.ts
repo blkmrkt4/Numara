@@ -1,4 +1,16 @@
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  // Reload everything when the SW updates, so a fresh deploy never gets
+  // a half-stale page from an old cache.
+  reloadOnOnline: true,
+  // Disable in dev — the SW caches everything and confuses HMR. We still
+  // register manually in prod and on a single explicit dev override env.
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -11,4 +23,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

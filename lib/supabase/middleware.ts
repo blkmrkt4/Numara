@@ -4,7 +4,20 @@ import { env } from "@/lib/env";
 
 const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/auth/error"];
 
+// PWA / install-time assets the browser fetches before any auth flow.
+// Blocking these breaks install on iOS Safari.
+const PWA_ASSETS = new Set([
+  "/sw.js",
+  "/manifest.webmanifest",
+  "/icon",
+  "/icon-512",
+  "/apple-icon",
+  "/favicon.ico",
+  "/robots.txt",
+]);
+
 function isPublicPath(pathname: string): boolean {
+  if (PWA_ASSETS.has(pathname)) return true;
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
