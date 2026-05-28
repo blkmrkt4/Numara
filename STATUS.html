@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Numara — status report</title>
+<style>
+  :root {
+    --fg: #111;
+    --fg-muted: #525252;
+    --fg-faint: #a3a3a3;
+    --bg: #ffffff;
+    --bg-soft: #fafafa;
+    --bg-card: #f5f5f5;
+    --line: #e5e5e5;
+    --line-strong: #d4d4d4;
+    --accent: #1d4ed8;
+    --done: #166534;
+    --done-bg: #dcfce7;
+    --pending: #92400e;
+    --pending-bg: #fef3c7;
+    --deferred: #525252;
+    --deferred-bg: #e5e5e5;
+    --code-bg: #f5f5f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #f5f5f5;
+      --fg-muted: #a3a3a3;
+      --fg-faint: #525252;
+      --bg: #0a0a0a;
+      --bg-soft: #171717;
+      --bg-card: #1c1c1c;
+      --line: #262626;
+      --line-strong: #404040;
+      --accent: #60a5fa;
+      --done: #86efac;
+      --done-bg: #14532d;
+      --pending: #fcd34d;
+      --pending-bg: #78350f;
+      --deferred: #a3a3a3;
+      --deferred-bg: #262626;
+      --code-bg: #171717;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  header.hero {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 40px;
+    margin-bottom: 48px;
+  }
+  header.hero h1 {
+    font-size: 56px;
+    letter-spacing: -0.03em;
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  header.hero p.tagline {
+    font-size: 20px;
+    color: var(--fg-muted);
+    margin: 0 0 24px;
+    max-width: 60ch;
+  }
+  header.hero .meta {
+    font-size: 13px;
+    color: var(--fg-faint);
+    font-family: ui-monospace, "SF Mono", monospace;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+    margin: 0 -24px 32px;
+    z-index: 10;
+  }
+  nav.toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: 13px;
+  }
+  nav.toc a {
+    color: var(--fg-muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  nav.toc a:hover { color: var(--fg); }
+  h2 {
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    margin: 64px 0 12px;
+    font-weight: 600;
+  }
+  h3 {
+    font-size: 18px;
+    margin: 32px 0 8px;
+    font-weight: 600;
+  }
+  h4 {
+    font-size: 14px;
+    margin: 20px 0 6px;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  p { margin: 0 0 12px; max-width: 70ch; }
+  ul, ol { padding-left: 22px; max-width: 70ch; }
+  li { margin: 4px 0; }
+  code {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid var(--line);
+  }
+  pre code { background: none; padding: 0; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+  }
+  .pill.done { background: var(--done-bg); color: var(--done); }
+  .pill.pending { background: var(--pending-bg); color: var(--pending); }
+  .pill.deferred { background: var(--deferred-bg); color: var(--deferred); }
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .step {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--bg-soft);
+  }
+  .step h4 {
+    margin: 0 0 4px;
+    color: var(--fg);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+  }
+  .step h4 .num {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--fg-muted);
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .step p { font-size: 12px; color: var(--fg-muted); margin: 6px 0 0; }
+  .diagram {
+    margin: 24px 0;
+    padding: 24px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  .diagram svg { display: block; width: 100%; height: auto; max-width: 1000px; margin: 0 auto; }
+  .diagram .caption {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--fg-muted);
+    text-align: center;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 16px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-weight: 600;
+    color: var(--fg-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  td code { font-size: 11px; }
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--bg-soft);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .note strong { color: var(--fg); }
+  /* SVG diagram defaults */
+  svg text { font-family: ui-sans-serif, system-ui, sans-serif; fill: var(--fg); }
+  svg .box { fill: var(--bg); stroke: var(--fg); stroke-width: 1.25; }
+  svg .box.muted { fill: var(--bg-soft); stroke: var(--fg-muted); }
+  svg .box.accent { fill: var(--bg); stroke: var(--accent); stroke-width: 1.75; }
+  svg .label { font-size: 12px; }
+  svg .label-strong { font-size: 13px; font-weight: 600; }
+  svg .label-small { font-size: 10px; fill: var(--fg-muted); }
+  svg .conn { stroke: var(--fg); stroke-width: 1.25; fill: none; }
+  svg .conn-muted { stroke: var(--fg-muted); stroke-width: 1; fill: none; stroke-dasharray: 3 3; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Numara</h1>
+  <p class="tagline">A personal net-worth tracker built around document capture. This document explains what is built, how it works, what is configured, and what is not.</p>
+  <div class="meta">
+    <span>Status as of 28 May 2026</span>
+    <span>11 commits on <code>main</code></span>
+    <span>Remote: blkmrkt4/Numera (private)</span>
+    <span>12 / 12 PRD §13 build steps complete</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#status">Status</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#capture-flow">Capture flow</a></li>
+    <li><a href="#auth">Auth</a></li>
+    <li><a href="#data-model">Data model</a></li>
+    <li><a href="#ai-layer">AI layer</a></li>
+    <li><a href="#offline">Offline / PWA</a></li>
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#stack">Tech stack</a></li>
+    <li><a href="#routes">Routes</a></li>
+    <li><a href="#wired">What works</a></li>
+    <li><a href="#config">What needs config</a></li>
+    <li><a href="#next">What's next</a></li>
+  </ul>
+</nav>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="overview">
+<h2>What Numara does</h2>
+<p>Most net-worth tools fail because they demand structured data entry: people give up because the friction of typing balances from twelve different statements is too high. Numara inverts that. The primary input is a <strong>photo or upload of a statement</strong>, and the system figures out what the document represents, what the balance is, and whether it is new or an update to an existing account.</p>
+<p>Outputs are intentionally simple: a single dashboard of total net worth in USD, CAD, and GBP, broken down by category — real estate, investments, cash, liabilities, recurring outgoings — with the ability to drill into any asset for detail and, for real estate, a one-tap "what would I net if I sold this today?" view.</p>
+<p>Built for one user initially (the author) but structured so it can extend to a household view later. The data model is household-ready from day one; the v1 UI is single-user.</p>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="status">
+<h2>Build status — PRD §13 in one screen</h2>
+<p>The PRD lays out a 12-step build sequence. Each step is a discrete shippable unit. All twelve are now landed in code. Some require one-off configuration before they exercise end-to-end (mainly the AI prompts).</p>
+
+<div class="step-grid">
+  <div class="step"><h4><span class="num">1</span>Auth shell <span class="pill done">done</span></h4>
+    <p>Magic-link email auth. <code>households</code> + <code>users</code> tables with RLS. Trigger auto-provisions household on first sign-in. <code>is_system_admin</code> flag in place from day one.</p></div>
+  <div class="step"><h4><span class="num">2</span>Manual assets <span class="pill done">done</span></h4>
+    <p><code>institutions</code>, <code>assets</code>, <code>balance_entries</code>. <code>asset_latest_balances</code> view. Per-currency dashboard totals.</p></div>
+  <div class="step"><h4><span class="num">3</span>FX + currency toggle <span class="pill done">done</span></h4>
+    <p><code>fx_rates</code> table fed by frankfurter.app (ECB-backed). Lazy refresh on dashboard load. Three-pill toggle, cookie-persisted.</p></div>
+  <div class="step"><h4><span class="num">4</span>Document upload <span class="pill done">done</span></h4>
+    <p><code>documents</code> table. Private Supabase Storage bucket, household-scoped prefix RLS. 15-min signed URLs. Standalone <code>/capture</code> + attach-to-balance.</p></div>
+  <div class="step"><h4><span class="num">5</span>Admin foundation <span class="pill done">done</span></h4>
+    <p>Eight admin tables (secrets, settings, models, prompts, versions, bindings, call logs, audit log). AES-256-GCM encryption layer. OpenRouter <code>/models</code> sync. Admin Settings page. <code>llmCall()</code> service with primary + 2 fallback chain.</p></div>
+  <div class="step"><h4><span class="num">6</span>Admin Prompts page <span class="pill done">done</span></h4>
+    <p>List + editor with smart-diff save (binding-only changes don't bump body version). Searchable virtualised model picker reused across 3 slots. Per-actor test rate limit. Full version history with one-click revert.</p></div>
+  <div class="step"><h4><span class="num">7</span>AI extraction <span class="pill done">code done · prompt to enable</span></h4>
+    <p><code>llmCall</code> + multimodal image_url support. <code>extract_statement</code> runs synchronously on upload. Review form with editable fields + per-field confidence pills. Falls back to manual entry on failure.</p></div>
+  <div class="step"><h4><span class="num">8</span>New-vs-update classification <span class="pill done">done</span></h4>
+    <p>Deterministic match (institution + last4 + currency) handles common cases. <code>classify_new_vs_update</code> is the LLM tiebreaker when ambiguous. Proposal banner + asset picker pre-selection.</p></div>
+  <div class="step"><h4><span class="num">9</span>Real estate <span class="pill done">done</span></h4>
+    <p><code>properties</code> + <code>property_valuations</code>. Net-equity headline. Property panel with mortgage linkage. Sale-scenario calculator with jurisdiction defaults (1.25% UK, 5% CA, 6% US agent fees). CGT defaults off per PRD.</p></div>
+  <div class="step"><h4><span class="num">10</span>PWA + offline <span class="pill done">done</span></h4>
+    <p>Manifest, icons (capital N via next/og), iOS meta tags. Service worker via Serwist with NetworkFirst for HTML / CacheFirst for static. IndexedDB queue for offline captures with on-reconnect drain. Offline banner.</p></div>
+  <div class="step"><h4><span class="num">11</span>Privacy + staleness + alerts <span class="pill done">done</span></h4>
+    <p>Cookie-based privacy mode masks every figure server-side. 90-day staleness threshold. Amber alerts strip lists stale assets with deep links.</p></div>
+  <div class="step"><h4><span class="num">12</span>History chart <span class="pill done">done</span></h4>
+    <p><code>net_worth_snapshots</code>. Computation walks assets, takes latest-on-or-before, applies FX of that day, pre-computes totals in each display currency. Hand-rolled SVG line chart. Manual "Snapshot now" button.</p></div>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="architecture">
+<h2>Architecture at a glance</h2>
+<p>Everything runs in Next.js's App Router. The proxy (formerly middleware) gates all routes by Supabase session. Supabase Postgres holds the data; row-level security policies enforce household scoping on every read and write. Storage holds original documents in a private bucket with the same RLS model. OpenRouter is the single outbound LLM gateway — no provider SDKs are imported directly. frankfurter.app supplies daily FX.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 540" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- Browser -->
+  <g transform="translate(20, 30)">
+    <rect class="box accent" width="200" height="120" rx="8"/>
+    <text x="100" y="28" text-anchor="middle" class="label-strong">Browser / PWA</text>
+    <text x="100" y="50" text-anchor="middle" class="label-small">iOS Safari, desktop, installed</text>
+    <line x1="20" y1="62" x2="180" y2="62" class="conn" stroke-width="0.5"/>
+    <text x="100" y="80" text-anchor="middle" class="label-small">Service worker (Serwist)</text>
+    <text x="100" y="96" text-anchor="middle" class="label-small">IndexedDB upload queue</text>
+    <text x="100" y="112" text-anchor="middle" class="label-small">Cookies: session + display currency + privacy</text>
+  </g>
+
+  <!-- Next.js -->
+  <g transform="translate(290, 30)">
+    <rect class="box" width="400" height="220" rx="8"/>
+    <text x="200" y="28" text-anchor="middle" class="label-strong">Next.js App Router</text>
+    <text x="200" y="46" text-anchor="middle" class="label-small">proxy.ts: gate by Supabase session</text>
+
+    <g transform="translate(15, 60)">
+      <rect class="box muted" width="170" height="70" rx="6"/>
+      <text x="85" y="22" text-anchor="middle" class="label">App routes</text>
+      <text x="85" y="40" text-anchor="middle" class="label-small">/dashboard, /assets/[id]</text>
+      <text x="85" y="54" text-anchor="middle" class="label-small">/capture, /assets/new</text>
+    </g>
+    <g transform="translate(15, 140)">
+      <rect class="box muted" width="170" height="65" rx="6"/>
+      <text x="85" y="22" text-anchor="middle" class="label">Server actions</text>
+      <text x="85" y="40" text-anchor="middle" class="label-small">addBalance, createAsset</text>
+      <text x="85" y="54" text-anchor="middle" class="label-small">linkDocumentToBalance, …</text>
+    </g>
+    <g transform="translate(215, 60)">
+      <rect class="box muted" width="170" height="70" rx="6"/>
+      <text x="85" y="22" text-anchor="middle" class="label">Admin routes</text>
+      <text x="85" y="40" text-anchor="middle" class="label-small">/admin/settings</text>
+      <text x="85" y="54" text-anchor="middle" class="label-small">/admin/prompts/[slug]</text>
+    </g>
+    <g transform="translate(215, 140)">
+      <rect class="box muted" width="170" height="65" rx="6"/>
+      <text x="85" y="22" text-anchor="middle" class="label">API handlers</text>
+      <text x="85" y="40" text-anchor="middle" class="label-small">/api/v1/upload</text>
+      <text x="85" y="54" text-anchor="middle" class="label-small">(offline queue target)</text>
+    </g>
+  </g>
+
+  <!-- Supabase -->
+  <g transform="translate(740, 30)">
+    <rect class="box accent" width="220" height="220" rx="8"/>
+    <text x="110" y="28" text-anchor="middle" class="label-strong">Supabase</text>
+
+    <g transform="translate(15, 50)">
+      <rect class="box muted" width="190" height="50" rx="6"/>
+      <text x="95" y="22" text-anchor="middle" class="label">Postgres + RLS</text>
+      <text x="95" y="38" text-anchor="middle" class="label-small">Per-household scoping</text>
+    </g>
+    <g transform="translate(15, 110)">
+      <rect class="box muted" width="190" height="50" rx="6"/>
+      <text x="95" y="22" text-anchor="middle" class="label">Storage (documents)</text>
+      <text x="95" y="38" text-anchor="middle" class="label-small">Private, signed URLs</text>
+    </g>
+    <g transform="translate(15, 170)">
+      <rect class="box muted" width="190" height="40" rx="6"/>
+      <text x="95" y="20" text-anchor="middle" class="label">Auth + sessions</text>
+    </g>
+  </g>
+
+  <!-- External services -->
+  <g transform="translate(290, 290)">
+    <rect class="box" width="180" height="80" rx="8"/>
+    <text x="90" y="28" text-anchor="middle" class="label-strong">OpenRouter</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">All LLM calls</text>
+    <text x="90" y="62" text-anchor="middle" class="label-small">Encrypted API key (AES-256)</text>
+  </g>
+  <g transform="translate(510, 290)">
+    <rect class="box" width="180" height="80" rx="8"/>
+    <text x="90" y="28" text-anchor="middle" class="label-strong">frankfurter.app</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">Daily FX rates</text>
+    <text x="90" y="62" text-anchor="middle" class="label-small">ECB-backed, no key</text>
+  </g>
+
+  <!-- Connections -->
+  <path d="M 220 90 L 290 90" class="conn" marker-end="url(#arr)"/>
+  <path d="M 690 90 L 740 90" class="conn" marker-end="url(#arr)"/>
+  <path d="M 690 160 L 740 160" class="conn" marker-end="url(#arr)"/>
+  <path d="M 380 250 L 380 290" class="conn" marker-end="url(#arr)"/>
+  <path d="M 600 250 L 600 290" class="conn" marker-end="url(#arr)"/>
+
+  <!-- Trust boundary label -->
+  <g transform="translate(290, 410)">
+    <rect class="box muted" width="400" height="80" rx="8"/>
+    <text x="200" y="22" text-anchor="middle" class="label-strong">Trust boundaries</text>
+    <text x="200" y="42" text-anchor="middle" class="label-small">Service-role key never reaches the browser (server-only).</text>
+    <text x="200" y="58" text-anchor="middle" class="label-small">Storage paths start with household_id; SQL RLS enforces it.</text>
+    <text x="200" y="74" text-anchor="middle" class="label-small">Documents in OpenRouter calls are not logged.</text>
+  </g>
+</svg>
+<p class="caption">Five-box architecture. Solid arrows are request flow; the trust-boundary box lists the invariants enforced across all routes.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="capture-flow">
+<h2>Capture flow — the headline feature</h2>
+<p>This is the path the PRD inverts the market around. Every other "track your net worth" app makes you type numbers from a statement. Numara has you take a photo and confirm.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- Step 1 -->
+  <g transform="translate(20, 30)">
+    <rect class="box accent" width="200" height="70" rx="8"/>
+    <text x="100" y="28" text-anchor="middle" class="label-strong">1. Capture</text>
+    <text x="100" y="48" text-anchor="middle" class="label-small">iOS camera or file picker</text>
+    <text x="100" y="62" text-anchor="middle" class="label-small">PDF, JPEG, PNG, HEIC, CSV, XLS(X)</text>
+  </g>
+
+  <!-- Online/offline split -->
+  <path d="M 220 65 L 280 65" class="conn" marker-end="url(#arr2)"/>
+
+  <g transform="translate(280, 15)">
+    <rect class="box" width="200" height="100" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">2a. Online</text>
+    <text x="100" y="44" text-anchor="middle" class="label-small">POST /api/v1/upload</text>
+    <text x="100" y="60" text-anchor="middle" class="label-small">multipart, &lt;26 MB</text>
+    <text x="100" y="78" text-anchor="middle" class="label-small">runs synchronously</text>
+    <text x="100" y="93" text-anchor="middle" class="label-small">redirects on success</text>
+  </g>
+  <g transform="translate(280, 130)">
+    <rect class="box muted" width="200" height="80" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">2b. Offline</text>
+    <text x="100" y="44" text-anchor="middle" class="label-small">IndexedDB queue</text>
+    <text x="100" y="60" text-anchor="middle" class="label-small">drains on 'online' event</text>
+    <text x="100" y="76" text-anchor="middle" class="label-small">hits the same endpoint</text>
+  </g>
+
+  <!-- Storage -->
+  <path d="M 480 65 L 540 65" class="conn" marker-end="url(#arr2)"/>
+  <g transform="translate(540, 30)">
+    <rect class="box" width="200" height="70" rx="8"/>
+    <text x="100" y="28" text-anchor="middle" class="label-strong">3. Storage upload</text>
+    <text x="100" y="48" text-anchor="middle" class="label-small">documents bucket</text>
+    <text x="100" y="62" text-anchor="middle" class="label-small">&lt;household_id&gt;/&lt;doc_id&gt;.ext</text>
+  </g>
+
+  <path d="M 640 100 L 640 140" class="conn" marker-end="url(#arr2)"/>
+
+  <!-- Extraction -->
+  <g transform="translate(540, 140)">
+    <rect class="box accent" width="200" height="80" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">4. Extract</text>
+    <text x="100" y="44" text-anchor="middle" class="label-small">llmCall('extract_statement')</text>
+    <text x="100" y="60" text-anchor="middle" class="label-small">vision model via OpenRouter</text>
+    <text x="100" y="76" text-anchor="middle" class="label-small">returns strict JSON</text>
+  </g>
+
+  <path d="M 640 220 L 640 260" class="conn" marker-end="url(#arr2)"/>
+
+  <!-- Classification -->
+  <g transform="translate(540, 260)">
+    <rect class="box accent" width="200" height="80" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">5. Classify</text>
+    <text x="100" y="44" text-anchor="middle" class="label-small">deterministic match first</text>
+    <text x="100" y="60" text-anchor="middle" class="label-small">LLM tiebreaker if ambiguous</text>
+    <text x="100" y="76" text-anchor="middle" class="label-small">UPDATE vs NEW + reason</text>
+  </g>
+
+  <!-- Review -->
+  <path d="M 540 300 L 480 300" class="conn" marker-end="url(#arr2)"/>
+  <g transform="translate(280, 230)">
+    <rect class="box" width="200" height="140" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">6. Review &amp; confirm</text>
+    <text x="100" y="48" text-anchor="middle" class="label-small">all fields editable</text>
+    <text x="100" y="64" text-anchor="middle" class="label-small">per-field confidence pills</text>
+    <text x="100" y="80" text-anchor="middle" class="label-small">document preview alongside</text>
+    <text x="100" y="96" text-anchor="middle" class="label-small">proposal pre-selects asset</text>
+    <text x="100" y="116" text-anchor="middle" class="label-small">nothing saves until tap</text>
+  </g>
+
+  <!-- Persist -->
+  <path d="M 280 300 L 220 300" class="conn" marker-end="url(#arr2)"/>
+  <g transform="translate(20, 270)">
+    <rect class="box" width="200" height="90" rx="8"/>
+    <text x="100" y="28" text-anchor="middle" class="label-strong">7. Persist</text>
+    <text x="100" y="48" text-anchor="middle" class="label-small">balance_entries row</text>
+    <text x="100" y="64" text-anchor="middle" class="label-small">source='document'</text>
+    <text x="100" y="80" text-anchor="middle" class="label-small">manually_edited flag</text>
+  </g>
+
+  <!-- Annotations -->
+  <g transform="translate(20, 430)">
+    <rect class="box muted" width="940" height="70" rx="8"/>
+    <text x="20" y="22" class="label-strong">Guarantees</text>
+    <text x="20" y="42" class="label-small">· PRD §5.2.1: nothing writes until the user explicitly taps Confirm — even for high-confidence extractions.</text>
+    <text x="20" y="58" class="label-small">· On any extraction failure, the file is preserved and the page falls back to manual entry. The user never loses input.</text>
+  </g>
+</svg>
+<p class="caption">Steps 1–7 of the capture flow. Online and offline paths converge at step 3 — the API endpoint is the same whichever way you arrived.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="auth">
+<h2>Auth flow</h2>
+<p>Magic-link via Supabase Auth. Passkeys/WebAuthn is the documented primary in PRD §6.1 but landed as a follow-up (see "What's next"). The signup trigger means a brand-new account never sees an empty <code>users</code> table — household and profile row are provisioned atomically with the auth.users insert.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 380" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <g transform="translate(20, 40)">
+    <rect class="box accent" width="180" height="60" rx="8"/>
+    <text x="90" y="26" text-anchor="middle" class="label-strong">/login</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">User enters email</text>
+  </g>
+
+  <path d="M 200 70 L 280 70" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(280, 40)">
+    <rect class="box" width="220" height="60" rx="8"/>
+    <text x="110" y="26" text-anchor="middle" class="label-strong">sendMagicLink action</text>
+    <text x="110" y="46" text-anchor="middle" class="label-small">supabase.auth.signInWithOtp</text>
+  </g>
+
+  <path d="M 500 70 L 580 70" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(580, 40)">
+    <rect class="box" width="180" height="60" rx="8"/>
+    <text x="90" y="26" text-anchor="middle" class="label-strong">Supabase Auth</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">sends email</text>
+  </g>
+
+  <path d="M 670 100 L 670 150" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(580, 150)">
+    <rect class="box muted" width="180" height="60" rx="8"/>
+    <text x="90" y="26" text-anchor="middle" class="label-strong">User clicks link</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">opens /auth/callback?code=…</text>
+  </g>
+
+  <path d="M 580 180 L 500 180" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(280, 150)">
+    <rect class="box" width="220" height="60" rx="8"/>
+    <text x="110" y="26" text-anchor="middle" class="label-strong">exchangeCodeForSession</text>
+    <text x="110" y="46" text-anchor="middle" class="label-small">cookie set, session live</text>
+  </g>
+
+  <path d="M 390 210 L 390 260" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(280, 260)">
+    <rect class="box accent" width="220" height="80" rx="8"/>
+    <text x="110" y="24" text-anchor="middle" class="label-strong">on_auth_user_created trigger</text>
+    <text x="110" y="44" text-anchor="middle" class="label-small">SECURITY DEFINER, fires once</text>
+    <text x="110" y="60" text-anchor="middle" class="label-small">creates household + users row</text>
+    <text x="110" y="76" text-anchor="middle" class="label-small">household.name = email local-part</text>
+  </g>
+
+  <path d="M 500 295 L 580 295" class="conn" marker-end="url(#arr3)"/>
+
+  <g transform="translate(580, 260)">
+    <rect class="box" width="180" height="80" rx="8"/>
+    <text x="90" y="24" text-anchor="middle" class="label-strong">Redirect /dashboard</text>
+    <text x="90" y="44" text-anchor="middle" class="label-small">proxy.ts session check</text>
+    <text x="90" y="60" text-anchor="middle" class="label-small">passes; RLS engages</text>
+    <text x="90" y="76" text-anchor="middle" class="label-small">household-scoped reads</text>
+  </g>
+
+  <g transform="translate(800, 40)">
+    <rect class="box muted" width="160" height="300" rx="8"/>
+    <text x="80" y="26" text-anchor="middle" class="label-strong">Cookies</text>
+    <text x="80" y="46" text-anchor="middle" class="label-small">sb-…-auth-token</text>
+    <text x="80" y="62" text-anchor="middle" class="label-small">display_currency</text>
+    <text x="80" y="78" text-anchor="middle" class="label-small">privacy_mode</text>
+    <line x1="20" y1="92" x2="140" y2="92" class="conn" stroke-width="0.5"/>
+    <text x="80" y="120" text-anchor="middle" class="label-small">All HttpOnly except</text>
+    <text x="80" y="134" text-anchor="middle" class="label-small">UI prefs.</text>
+    <text x="80" y="170" text-anchor="middle" class="label-small">Session refreshed</text>
+    <text x="80" y="184" text-anchor="middle" class="label-small">by proxy on every</text>
+    <text x="80" y="198" text-anchor="middle" class="label-small">non-PWA request.</text>
+  </g>
+</svg>
+<p class="caption">Magic-link sign-in. The trigger pattern means there is no "if no profile, create one" code path — Postgres does it.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="data-model">
+<h2>Data model</h2>
+<p>Two trust domains. Household-scoped tables hold user data. Global tables hold AI infrastructure that is shared across all households (currently just the one) and is only readable by users with <code>is_system_admin = true</code>.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- Household-scoped cluster -->
+  <g transform="translate(20, 20)">
+    <rect class="box muted" width="600" height="450" rx="10"/>
+    <text x="20" y="24" class="label-strong">Household-scoped (RLS on household_id)</text>
+
+    <!-- households -->
+    <g transform="translate(220, 50)">
+      <rect class="box accent" width="160" height="60" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">households</text>
+      <text x="80" y="46" text-anchor="middle" class="label-small">name, default_currency</text>
+    </g>
+
+    <!-- users -->
+    <g transform="translate(20, 50)">
+      <rect class="box" width="160" height="60" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">users</text>
+      <text x="80" y="46" text-anchor="middle" class="label-small">id↔auth.uid, is_system_admin</text>
+    </g>
+    <path d="M 180 80 L 220 80" class="conn" marker-end="url(#arr4)"/>
+
+    <!-- institutions -->
+    <g transform="translate(420, 50)">
+      <rect class="box" width="160" height="60" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">institutions</text>
+      <text x="80" y="46" text-anchor="middle" class="label-small">name, country, type</text>
+    </g>
+    <path d="M 380 80 L 420 80" class="conn" marker-end="url(#arr4)"/>
+
+    <!-- assets -->
+    <g transform="translate(220, 140)">
+      <rect class="box accent" width="160" height="70" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">assets</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">category, native_currency</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">account_last4, archived</text>
+    </g>
+    <path d="M 300 110 L 300 140" class="conn" marker-end="url(#arr4)"/>
+    <path d="M 420 110 L 380 140" class="conn-muted" marker-end="url(#arr4)"/>
+
+    <!-- balance_entries -->
+    <g transform="translate(20, 240)">
+      <rect class="box" width="160" height="80" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">balance_entries</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">amount, as_of_date</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">source, source_document_id</text>
+      <text x="80" y="72" text-anchor="middle" class="label-small">confidence, manually_edited</text>
+    </g>
+    <path d="M 220 210 L 100 240" class="conn" marker-end="url(#arr4)"/>
+
+    <!-- documents -->
+    <g transform="translate(220, 240)">
+      <rect class="box" width="160" height="80" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">documents</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">storage_path, mime_type</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">extracted_json</text>
+      <text x="80" y="72" text-anchor="middle" class="label-small">status</text>
+    </g>
+    <path d="M 220 290 L 180 290" class="conn-muted" marker-end="url(#arr4)"/>
+
+    <!-- properties -->
+    <g transform="translate(420, 240)">
+      <rect class="box" width="160" height="80" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">properties</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">address, country</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">mortgage_asset_id</text>
+      <text x="80" y="72" text-anchor="middle" class="label-small">sale_cost_overrides</text>
+    </g>
+    <path d="M 380 175 L 420 240" class="conn" marker-end="url(#arr4)"/>
+
+    <!-- property_valuations -->
+    <g transform="translate(420, 350)">
+      <rect class="box" width="160" height="70" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">property_valuations</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">estimated_value</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">balance_entry_id</text>
+    </g>
+    <path d="M 500 320 L 500 350" class="conn" marker-end="url(#arr4)"/>
+
+    <!-- snapshots -->
+    <g transform="translate(220, 350)">
+      <rect class="box" width="160" height="70" rx="6"/>
+      <text x="80" y="26" text-anchor="middle" class="label-strong">net_worth_snapshots</text>
+      <text x="80" y="44" text-anchor="middle" class="label-small">snapshot_date</text>
+      <text x="80" y="58" text-anchor="middle" class="label-small">totals_by_currency</text>
+    </g>
+    <path d="M 300 110 L 300 350" class="conn-muted" marker-end="url(#arr4)"/>
+  </g>
+
+  <!-- Global cluster -->
+  <g transform="translate(640, 20)">
+    <rect class="box muted" width="320" height="450" rx="10"/>
+    <text x="20" y="24" class="label-strong">Global (admin-only RLS)</text>
+
+    <g transform="translate(20, 50)">
+      <rect class="box accent" width="120" height="50" rx="6"/>
+      <text x="60" y="22" text-anchor="middle" class="label-strong">prompts</text>
+      <text x="60" y="38" text-anchor="middle" class="label-small">slug, status</text>
+    </g>
+    <g transform="translate(170, 50)">
+      <rect class="box" width="130" height="50" rx="6"/>
+      <text x="65" y="22" text-anchor="middle" class="label-strong">prompt_versions</text>
+      <text x="65" y="38" text-anchor="middle" class="label-small">body, slugs</text>
+    </g>
+    <path d="M 140 75 L 170 75" class="conn" marker-end="url(#arr4)"/>
+
+    <g transform="translate(20, 130)">
+      <rect class="box" width="280" height="50" rx="6"/>
+      <text x="140" y="22" text-anchor="middle" class="label-strong">prompt_bindings</text>
+      <text x="140" y="38" text-anchor="middle" class="label-small">primary + fallback 1 + fallback 2, params</text>
+    </g>
+    <path d="M 80 100 L 80 130" class="conn" marker-end="url(#arr4)"/>
+
+    <g transform="translate(20, 200)">
+      <rect class="box" width="280" height="50" rx="6"/>
+      <text x="140" y="22" text-anchor="middle" class="label-strong">openrouter_models</text>
+      <text x="140" y="38" text-anchor="middle" class="label-small">catalogue cache, capability flags</text>
+    </g>
+
+    <g transform="translate(20, 270)">
+      <rect class="box" width="280" height="50" rx="6"/>
+      <text x="140" y="22" text-anchor="middle" class="label-strong">llm_call_logs</text>
+      <text x="140" y="38" text-anchor="middle" class="label-small">every attempt, fallback tier, cost</text>
+    </g>
+
+    <g transform="translate(20, 340)">
+      <rect class="box" width="135" height="50" rx="6"/>
+      <text x="67" y="22" text-anchor="middle" class="label-strong">system_secrets</text>
+      <text x="67" y="38" text-anchor="middle" class="label-small">AES-256-GCM</text>
+    </g>
+    <g transform="translate(165, 340)">
+      <rect class="box" width="135" height="50" rx="6"/>
+      <text x="67" y="22" text-anchor="middle" class="label-strong">system_settings</text>
+      <text x="67" y="38" text-anchor="middle" class="label-small">global defaults</text>
+    </g>
+
+    <g transform="translate(20, 405)">
+      <rect class="box muted" width="280" height="35" rx="6"/>
+      <text x="140" y="22" text-anchor="middle" class="label-strong">admin_audit_log</text>
+    </g>
+  </g>
+
+  <!-- Cross-domain -->
+  <g transform="translate(20, 510)">
+    <rect class="box muted" width="940" height="65" rx="8"/>
+    <text x="20" y="22" class="label-strong">Other global tables</text>
+    <text x="20" y="42" class="label-small">fx_rates — daily cross-rates, read-only for authenticated users. Updates via service role from /lib/fx.ts.</text>
+    <text x="20" y="58" class="label-small">All authenticated reads of fx_rates require a Supabase session; writes always go through the service role.</text>
+  </g>
+</svg>
+<p class="caption">Solid arrows are required FKs. Dashed arrows are nullable FKs or join keys. Property valuations link back to a synthetic balance_entries row so the dashboard math stays unified.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="ai-layer">
+<h2>AI / LLM layer</h2>
+<p>The PRD made one structural decision that's load-bearing for everything downstream: <strong>all LLM calls go through OpenRouter</strong>, never a provider SDK. That keeps models swappable, lets each prompt have a primary + 2 fallback chain, and gives us one chokepoint for keys, logging, and cost control. The application code calls <code>llmCall(slug, vars)</code>; everything else is configured in the admin UI.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <g transform="translate(20, 30)">
+    <rect class="box accent" width="220" height="60" rx="8"/>
+    <text x="110" y="26" text-anchor="middle" class="label-strong">App code</text>
+    <text x="110" y="46" text-anchor="middle" class="label-small">llmCall('extract_statement', vars, {images})</text>
+  </g>
+
+  <path d="M 240 60 L 320 60" class="conn" marker-end="url(#arr5)"/>
+
+  <g transform="translate(320, 30)">
+    <rect class="box" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">Resolve prompt</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">load body + current version</text>
+  </g>
+
+  <path d="M 520 60 L 600 60" class="conn" marker-end="url(#arr5)"/>
+
+  <g transform="translate(600, 30)">
+    <rect class="box" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">Render template</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">substitute {{slugs}}</text>
+  </g>
+
+  <path d="M 700 90 L 700 130" class="conn" marker-end="url(#arr5)"/>
+
+  <g transform="translate(600, 130)">
+    <rect class="box accent" width="200" height="80" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">Try primary model</text>
+    <text x="100" y="44" text-anchor="middle" class="label-small">POST OpenRouter /chat/completions</text>
+    <text x="100" y="60" text-anchor="middle" class="label-small">decrypt key, multimodal if images</text>
+    <text x="100" y="76" text-anchor="middle" class="label-small">timeout 30s</text>
+  </g>
+
+  <path d="M 600 170 L 540 170" class="conn" marker-end="url(#arr5)"/>
+  <g transform="translate(320, 130)">
+    <rect class="box muted" width="220" height="80" rx="8"/>
+    <text x="110" y="24" text-anchor="middle" class="label-strong">On any failure</text>
+    <text x="110" y="44" text-anchor="middle" class="label-small">5xx, timeout, empty body,</text>
+    <text x="110" y="60" text-anchor="middle" class="label-small">schema validation fail,</text>
+    <text x="110" y="76" text-anchor="middle" class="label-small">rate limit, content filter</text>
+  </g>
+
+  <path d="M 430 210 L 430 240" class="conn" marker-end="url(#arr5)"/>
+
+  <g transform="translate(320, 240)">
+    <rect class="box" width="220" height="60" rx="8"/>
+    <text x="110" y="26" text-anchor="middle" class="label-strong">Try fallback 1</text>
+    <text x="110" y="46" text-anchor="middle" class="label-small">same shape, different model</text>
+  </g>
+
+  <path d="M 430 300 L 430 330" class="conn" marker-end="url(#arr5)"/>
+
+  <g transform="translate(320, 330)">
+    <rect class="box" width="220" height="60" rx="8"/>
+    <text x="110" y="26" text-anchor="middle" class="label-strong">Try fallback 2</text>
+    <text x="110" y="46" text-anchor="middle" class="label-small">if both fail → raise to caller</text>
+  </g>
+
+  <!-- Logging -->
+  <g transform="translate(600, 240)">
+    <rect class="box" width="200" height="150" rx="8"/>
+    <text x="100" y="24" text-anchor="middle" class="label-strong">Log every attempt</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">llm_call_logs row per try</text>
+    <text x="100" y="62" text-anchor="middle" class="label-small">prompt_slug, model_used</text>
+    <text x="100" y="78" text-anchor="middle" class="label-small">was_fallback (0/1/2)</text>
+    <text x="100" y="94" text-anchor="middle" class="label-small">latency_ms, tokens, cost</text>
+    <text x="100" y="110" text-anchor="middle" class="label-small">success, error_message</text>
+    <text x="100" y="128" text-anchor="middle" class="label-small">was_test, actor_id</text>
+  </g>
+
+  <path d="M 540 270 L 600 270" class="conn-muted" marker-end="url(#arr5)"/>
+  <path d="M 540 360 L 600 360" class="conn-muted" marker-end="url(#arr5)"/>
+
+  <!-- Admin config -->
+  <g transform="translate(20, 130)">
+    <rect class="box muted" width="280" height="200" rx="8"/>
+    <text x="140" y="24" text-anchor="middle" class="label-strong">Admin configuration</text>
+    <text x="140" y="48" text-anchor="middle" class="label-small">/admin/settings: OpenRouter key,</text>
+    <text x="140" y="62" text-anchor="middle" class="label-small">global defaults, /models sync</text>
+    <line x1="40" y1="76" x2="240" y2="76" class="conn-muted" stroke-width="0.5"/>
+    <text x="140" y="98" text-anchor="middle" class="label-small">/admin/prompts/[slug]:</text>
+    <text x="140" y="112" text-anchor="middle" class="label-small">edit body, slugs, version history,</text>
+    <text x="140" y="126" text-anchor="middle" class="label-small">model picker × 3, params,</text>
+    <text x="140" y="140" text-anchor="middle" class="label-small">JSON schema, test panel</text>
+    <line x1="40" y1="156" x2="240" y2="156" class="conn-muted" stroke-width="0.5"/>
+    <text x="140" y="176" text-anchor="middle" class="label-small">All admin actions written to</text>
+    <text x="140" y="190" text-anchor="middle" class="label-small">admin_audit_log (no secrets).</text>
+  </g>
+
+  <g transform="translate(20, 410)">
+    <rect class="box muted" width="940" height="50" rx="8"/>
+    <text x="470" y="26" text-anchor="middle" class="label-strong">Prompt slugs the app calls</text>
+    <text x="470" y="42" text-anchor="middle" class="label-small">extract_statement (step 7) · classify_new_vs_update (step 8) · normalise_institution_name, summarise_property_valuation, suggest_outgoing_category (reserved)</text>
+  </g>
+</svg>
+<p class="caption">Single chokepoint architecture. The runtime tries up to three models per call; the admin UI is the only place model selection or prompt body lives.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="offline">
+<h2>Offline / PWA</h2>
+<p>Service worker registered on first load (production builds only — disabled in dev so HMR works). NetworkFirst for HTML routes means a navigation falls back to the last cached version when offline. The IndexedDB upload queue handles the only write path the PRD explicitly calls out for offline: captures.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 380" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- Online path -->
+  <g transform="translate(20, 30)">
+    <rect class="box" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">Capture click</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">file selected</text>
+  </g>
+
+  <g transform="translate(280, 30)">
+    <rect class="box muted" width="180" height="60" rx="8"/>
+    <text x="90" y="26" text-anchor="middle" class="label-strong">navigator.onLine?</text>
+    <text x="90" y="46" text-anchor="middle" class="label-small">branching point</text>
+  </g>
+  <path d="M 220 60 L 280 60" class="conn" marker-end="url(#arr6)"/>
+
+  <!-- Online branch -->
+  <g transform="translate(520, 30)">
+    <rect class="box accent" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">Online → POST</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">/api/v1/upload</text>
+  </g>
+  <path d="M 460 60 L 520 60" class="conn" marker-end="url(#arr6)"/>
+
+  <g transform="translate(770, 30)">
+    <rect class="box" width="190" height="60" rx="8"/>
+    <text x="95" y="26" text-anchor="middle" class="label-strong">Redirect to review</text>
+    <text x="95" y="46" text-anchor="middle" class="label-small">/capture/[id]</text>
+  </g>
+  <path d="M 720 60 L 770 60" class="conn" marker-end="url(#arr6)"/>
+
+  <!-- Offline branch -->
+  <g transform="translate(520, 130)">
+    <rect class="box accent" width="200" height="70" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">Offline → enqueue</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">IndexedDB pending_uploads</text>
+    <text x="100" y="62" text-anchor="middle" class="label-small">Blob + metadata</text>
+  </g>
+  <path d="M 370 90 L 520 130" class="conn" marker-end="url(#arr6)"/>
+
+  <g transform="translate(770, 130)">
+    <rect class="box" width="190" height="70" rx="8"/>
+    <text x="95" y="26" text-anchor="middle" class="label-strong">Show "queued"</text>
+    <text x="95" y="46" text-anchor="middle" class="label-small">banner counts the entries</text>
+    <text x="95" y="62" text-anchor="middle" class="label-small">"Sync now" button</text>
+  </g>
+  <path d="M 720 165 L 770 165" class="conn" marker-end="url(#arr6)"/>
+
+  <!-- Reconnect / drain -->
+  <g transform="translate(280, 250)">
+    <rect class="box muted" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">window 'online' event</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">OR app load OR Sync now</text>
+  </g>
+  <path d="M 620 200 L 380 250" class="conn-muted" marker-end="url(#arr6)"/>
+
+  <g transform="translate(520, 250)">
+    <rect class="box accent" width="200" height="60" rx="8"/>
+    <text x="100" y="26" text-anchor="middle" class="label-strong">drainPendingUploads</text>
+    <text x="100" y="46" text-anchor="middle" class="label-small">POST each in order</text>
+  </g>
+  <path d="M 480 280 L 520 280" class="conn" marker-end="url(#arr6)"/>
+
+  <g transform="translate(770, 250)">
+    <rect class="box" width="190" height="60" rx="8"/>
+    <text x="95" y="26" text-anchor="middle" class="label-strong">Remove on success</text>
+    <text x="95" y="46" text-anchor="middle" class="label-small">retry+log on failure</text>
+  </g>
+  <path d="M 720 280 L 770 280" class="conn" marker-end="url(#arr6)"/>
+
+  <!-- Read cache -->
+  <g transform="translate(20, 250)">
+    <rect class="box muted" width="240" height="100" rx="8"/>
+    <text x="120" y="24" text-anchor="middle" class="label-strong">Read-side offline</text>
+    <text x="120" y="46" text-anchor="middle" class="label-small">Serwist defaultCache:</text>
+    <text x="120" y="62" text-anchor="middle" class="label-small">· HTML routes — NetworkFirst</text>
+    <text x="120" y="78" text-anchor="middle" class="label-small">· /_next/static — CacheFirst</text>
+    <text x="120" y="94" text-anchor="middle" class="label-small">· /auth/*, signed URLs — NetworkOnly</text>
+  </g>
+</svg>
+<p class="caption">Online and offline both terminate at the same POST endpoint; the queue is just a deferred replay of what the online path does immediately.</p>
+</div>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="dashboard">
+<h2>Dashboard composition</h2>
+<p>Server-rendered, no client-side data fetching on the main load. Every section reads the same household state via the supabase server client.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 980 360" xmlns="http://www.w3.org/2000/svg">
+  <defs></defs>
+
+  <g transform="translate(20, 20)">
+    <rect class="box muted" width="940" height="330" rx="10"/>
+    <text x="20" y="24" class="label-strong">/dashboard</text>
+
+    <g transform="translate(20, 50)">
+      <rect class="box accent" width="900" height="70" rx="6"/>
+      <text x="20" y="22" class="label-strong">Net worth headline</text>
+      <text x="20" y="40" class="label-small">Single number in chosen display currency · currency toggle (GBP/USD/CAD)</text>
+      <text x="20" y="56" class="label-small">Privacy toggle (eye/dot) · per-currency conversion using stored fx_rates</text>
+    </g>
+
+    <g transform="translate(20, 130)">
+      <rect class="box" width="440" height="70" rx="6"/>
+      <text x="20" y="22" class="label-strong">Alerts strip</text>
+      <text x="20" y="40" class="label-small">Stale assets (no balance, or &gt;90 days)</text>
+      <text x="20" y="56" class="label-small">Deep links into asset detail</text>
+    </g>
+
+    <g transform="translate(480, 130)">
+      <rect class="box" width="440" height="70" rx="6"/>
+      <text x="20" y="22" class="label-strong">History chart</text>
+      <text x="20" y="40" class="label-small">SVG line chart, last 24 monthly snapshots</text>
+      <text x="20" y="56" class="label-small">Δ vs start, carried-forward markers</text>
+    </g>
+
+    <g transform="translate(20, 210)">
+      <rect class="box" width="900" height="60" rx="6"/>
+      <text x="20" y="22" class="label-strong">Category breakdown</text>
+      <text x="20" y="40" class="label-small">Real estate · Investments · Cash · Liabilities — each with subtotal + asset rows (native + converted)</text>
+    </g>
+
+    <g transform="translate(20, 280)">
+      <rect class="box" width="900" height="40" rx="6"/>
+      <text x="20" y="26" class="label-strong">Snapshots strip · "Snapshot now" button · admin link (if applicable)</text>
+    </g>
+  </g>
+</svg>
+<p class="caption">Five sections, all server-rendered from a single round-trip to Supabase.</p>
+</div>
+
+<h3>How money figures get to the screen</h3>
+<ol>
+  <li>Server fetches non-archived assets via RLS (only your household's rows are visible).</li>
+  <li>Server fetches <code>asset_latest_balances</code> view to get the latest balance per asset in one query.</li>
+  <li>Server reads <code>display_currency</code> + <code>privacy_mode</code> cookies.</li>
+  <li><code>ensureFreshRates()</code> hits frankfurter once a day, otherwise uses cached <code>fx_rates</code>.</li>
+  <li>For each asset, <code>convert(amount, native, display, rates)</code> computes the display-currency figure. Liabilities subtract.</li>
+  <li>Server renders all figures via <code>formatMoney(n, ccy, masked)</code> — when <code>masked</code> is true the digits never leave the server.</li>
+  <li>Per-category subtotals and the headline net worth are sums of these converted figures.</li>
+  <li>The history chart reads pre-computed snapshots — no recomputation at render time.</li>
+</ol>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="stack">
+<h2>Tech stack</h2>
+
+<table>
+<thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Framework</td><td>Next.js 16 (App Router, Turbopack dev)</td><td>Single-developer project; thin server actions over a React UI</td></tr>
+<tr><td>Language</td><td>TypeScript, strict</td><td>Mandatory per CLAUDE.md</td></tr>
+<tr><td>Styling</td><td>Tailwind 4 · tabular-nums for money</td><td>Calm, dense, monochrome per PRD §9</td></tr>
+<tr><td>DB / Auth / Storage</td><td>Supabase</td><td>Hosted Postgres with RLS, Storage with bucket RLS, magic-link Auth</td></tr>
+<tr><td>Migrations</td><td>Supabase CLI</td><td><code>supabase db push</code> after every migration; tracked under <code>supabase/migrations/</code></td></tr>
+<tr><td>LLM gateway</td><td>OpenRouter only</td><td>PRD §7: no direct provider SDKs; lets us swap models without redeploys</td></tr>
+<tr><td>FX</td><td>frankfurter.app</td><td>Free, ECB-backed, no API key</td></tr>
+<tr><td>PWA</td><td>@serwist/next</td><td>Workbox-style strategies, BackgroundSync hooks</td></tr>
+<tr><td>Encryption</td><td>AES-256-GCM (Node crypto)</td><td>Application-layer for system_secrets; key separate from Supabase keys per PRD §8</td></tr>
+<tr><td>Charts</td><td>Hand-rolled SVG</td><td>No JS bundle cost; server-rendered; one component</td></tr>
+<tr><td>Hosting</td><td>Vercel (not yet deployed)</td><td>App Router native</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="routes">
+<h2>Routes</h2>
+<p>17 routes total. Everything under <code>/admin/*</code> is gated by <code>is_system_admin</code> with a 404 fallback to non-admins (PRD §14.1: "we don't advertise its existence").</p>
+
+<table>
+<thead><tr><th>Route</th><th>Purpose</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>/</code></td><td>Landing / sign-in link</td><td>Static, public</td></tr>
+<tr><td><code>/login</code></td><td>Magic-link form</td><td>Public</td></tr>
+<tr><td><code>/auth/callback</code></td><td>Exchange code for session</td><td>Public — completes the email round-trip</td></tr>
+<tr><td><code>/dashboard</code></td><td>Net worth + alerts + chart + categories</td><td>Gated</td></tr>
+<tr><td><code>/assets/new</code></td><td>Add asset (form shape depends on category)</td><td>Real estate path captures property fields</td></tr>
+<tr><td><code>/assets/[id]</code></td><td>Asset detail (standard or property view)</td><td>Add balance / add valuation / archive</td></tr>
+<tr><td><code>/capture</code></td><td>Upload entry point</td><td>Client component with online/offline branching</td></tr>
+<tr><td><code>/capture/[id]</code></td><td>Review extracted fields + proposal</td><td>Editable; user must confirm</td></tr>
+<tr><td><code>/api/v1/upload</code></td><td>JSON upload endpoint</td><td>Used by both online path and queue drainer</td></tr>
+<tr><td><code>/admin/settings</code></td><td>OpenRouter key, defaults, model sync, recent calls</td><td>404 to non-admins</td></tr>
+<tr><td><code>/admin/prompts</code></td><td>Prompt list</td><td>404 to non-admins</td></tr>
+<tr><td><code>/admin/prompts/[slug]</code></td><td>Editor + binding + history + test panel</td><td>Smart-diff save</td></tr>
+<tr><td><code>/manifest.webmanifest</code></td><td>PWA manifest</td><td>Public — needed before auth on iOS install</td></tr>
+<tr><td><code>/sw.js</code></td><td>Service worker</td><td>Public — Serwist-compiled</td></tr>
+<tr><td><code>/icon</code>, <code>/icon-512</code>, <code>/apple-icon</code></td><td>App icons via next/og</td><td>Public</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="wired">
+<h2>What is wired and verified</h2>
+
+<h3>End-to-end paths that work today</h3>
+<ul>
+  <li><strong>Sign-in.</strong> Magic-link round-trip verified; trigger auto-provisions household + users on first email click.</li>
+  <li><strong>Manual asset + balance.</strong> Create asset, add balance, see it in totals. Per-currency totals correct.</li>
+  <li><strong>FX.</strong> Six cross-rates persisted from frankfurter; conversion in the dashboard verified.</li>
+  <li><strong>Document upload.</strong> Files land in the private storage bucket under the correct household-id prefix. Signed URLs work in the review page.</li>
+  <li><strong>Admin foundation.</strong> Encrypted OpenRouter key round-trips correctly (verified by syncing 356 models from <code>/v1/models</code>).</li>
+  <li><strong>Prompt UI.</strong> Smart-diff save tested; model picker filters 356 models by capability / cost / provider.</li>
+  <li><strong>Classification (deterministic path).</strong> Institution + last4 + currency matching tested in code; LLM tiebreaker requires the prompt to be configured.</li>
+  <li><strong>Real estate.</strong> Property form captures address + purchase fields; sale-scenario panel computes live; jurisdiction defaults applied.</li>
+  <li><strong>PWA build.</strong> Manifest, icons, and SW all serve correctly in production; build pipeline tested.</li>
+  <li><strong>Privacy mode.</strong> Cookie persists across navigation; every server-rendered figure masks correctly.</li>
+  <li><strong>Staleness + alerts.</strong> 90-day threshold; amber styling; deep links work.</li>
+  <li><strong>History chart.</strong> Renders when ≥2 snapshots exist; manual snapshot button writes the right rows.</li>
+</ul>
+
+<h3>RLS guarantees verified</h3>
+<ul>
+  <li>RLS enabled on every household-scoped table and on storage objects in the documents bucket.</li>
+  <li><code>current_household_id()</code> SECURITY DEFINER helper used both as column default and inside RLS predicates → impossible to fabricate cross-household writes from the wire.</li>
+  <li>Storage bucket keys start with <code>&lt;household_id&gt;/</code> and the storage RLS policy validates that prefix.</li>
+  <li>Service-role key never reaches the client (<code>import 'server-only'</code> guard on <code>lib/supabase/admin.ts</code>).</li>
+  <li>OpenRouter API key encrypted at rest with a key separate from the Supabase keys.</li>
+</ul>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="config">
+<h2>What needs one-off configuration</h2>
+
+<div class="note"><strong>None of these are bugs.</strong> They are configuration steps the application UI was built for. You are the admin and you are expected to do these once.</div>
+
+<h3>1. Configure the <code>extract_statement</code> prompt <span class="pill pending">needed for AI</span></h3>
+<p>Until this is set, every document upload will fall through to manual entry. The application code is ready; the prompt body and bound model are not.</p>
+<p>Go to <code>/admin/prompts/extract_statement</code> and:</p>
+<ol>
+  <li>Paste a real prompt body (the recommended body is in the chat history of the session that built step 7). It should ask the model to return a strict JSON shape with confidences per field.</li>
+  <li>Set <strong>Available slugs</strong> to: <code>known_institutions, user_default_currency, document_image_or_text</code>.</li>
+  <li>Pick a vision-capable model as the primary (search "claude sonnet" in the picker).</li>
+  <li>Set fallbacks: <code>openai/gpt-4o</code> (or <code>gpt-4.1</code>), and a Gemini vision model.</li>
+  <li>Temperature <strong>0</strong>, max tokens <strong>2048</strong>, response format <strong>JSON</strong> with the schema pasted in.</li>
+  <li>Click <strong>Save</strong>, then <strong>Enable</strong> at the top.</li>
+</ol>
+
+<h3>2. Configure the <code>classify_new_vs_update</code> prompt <span class="pill deferred">optional</span></h3>
+<p>Only invoked as a tiebreaker when deterministic matching has more than one candidate. Most uploads never need it. Configure when you start hitting ambiguity.</p>
+
+<h3>3. Auth: passkey enrolment <span class="pill deferred">deferred follow-up</span></h3>
+<p>PRD §6.1 lists passkey/WebAuthn as the primary auth, with magic link as the fallback. We agreed at step 1 to ship magic link and add passkey as a dedicated follow-up. Magic link works today; passkey enrolment needs SimpleWebAuthn + Supabase Auth integration.</p>
+
+<h3>4. Vercel deploy + monthly snapshot cron <span class="pill deferred">deferred</span></h3>
+<p>Not deployed yet. When you deploy:</p>
+<ul>
+  <li>Add the <code>.env.local</code> values to Vercel project env (anon key, service role, OpenRouter key, encryption key).</li>
+  <li>Add a <code>vercel.json</code> cron entry pointing at a new <code>/api/cron/monthly-snapshot</code> route handler that iterates households and calls <code>computeAndStoreSnapshot()</code>.</li>
+  <li>Configure Supabase Auth redirect URLs to include your production hostname.</li>
+</ul>
+
+<h3>5. OpenRouter cost dashboard <span class="pill deferred">deferred</span></h3>
+<p>The Settings page shows "recent calls" but not the aggregated cost-by-prompt breakdown the PRD describes. Data is all in <code>llm_call_logs</code>; needs a query and a small chart.</p>
+
+<h3>6. CSV / XLSX extraction <span class="pill deferred">deferred</span></h3>
+<p>The upload bucket accepts these MIME types, but <code>lib/extraction.ts</code> only ships images and PDFs to the vision model. CSV/XLSX would need text extraction first.</p>
+
+<h3>7. Recurring outgoings <span class="pill deferred">deferred</span></h3>
+<p>PRD §5.8 (cash-flow view) is a separate feature not in the §13 build sequence. The data model is in PRD §8; the UI and ingestion are unbuilt.</p>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<section id="next">
+<h2>What to do next</h2>
+
+<h3>If you want to start using it</h3>
+<ol>
+  <li>Configure <code>extract_statement</code> as above. Without this, AI extraction is a no-op.</li>
+  <li>Add a couple of cash assets manually so the dashboard isn't empty.</li>
+  <li>Take a real photo of a statement, upload it via <code>/capture</code>, watch the review form pre-fill.</li>
+  <li>Click <strong>Snapshot now</strong> a few times across different days to start a history.</li>
+</ol>
+
+<h3>If you want to ship it</h3>
+<ol>
+  <li>Deploy to Vercel. Set env vars. Configure Supabase Auth redirect URLs.</li>
+  <li>Add the monthly snapshot cron. The function exists; just needs a route handler + <code>vercel.json</code>.</li>
+  <li>Decide on the passkey story. Either ship magic-link only or add SimpleWebAuthn before launching to anyone else.</li>
+  <li>Run through the data-deletion path manually — PRD §6.1 promises export + 30-day grace deletion, which we haven't tested.</li>
+</ol>
+
+<h3>If you want to extend the AI</h3>
+<ol>
+  <li>Wire <code>classify_new_vs_update</code> (the prompt exists, the application call site exists; just configure the body and a model).</li>
+  <li>Add the cost dashboard on <code>/admin/settings</code> — query <code>llm_call_logs</code> grouped by prompt_slug, ranked by spend, with a fallback-rate column.</li>
+  <li>Consider OCR fallback (Tesseract / a hosted OCR API) for very simple documents to reduce token spend, as PRD §11 risk-mitigation suggests.</li>
+</ol>
+</section>
+
+<!-- ──────────────────────────────────────────────────────────────── -->
+<footer style="margin-top:96px; padding-top:24px; border-top:1px solid var(--line); font-size:12px; color:var(--fg-faint);">
+<p style="max-width:none;">
+Numara · Built across 12 PRD §13 steps · 11 commits on <code>main</code> · 6 Supabase migrations applied to <code>psvaixeynmjzqatipgej</code>.<br>
+This document was generated as a single self-contained HTML file. Open it directly in a browser — no build step, no dependencies.
+</p>
+</footer>
+
+</div>
+</body>
+</html>
