@@ -19,6 +19,13 @@ export type LlmCallOptions = {
   extraMessages?: LlmMessage[];
   /** Override the per-attempt timeout (default 30s). */
   timeoutMs?: number;
+  /**
+   * Mark this call as an admin test run. Logged with was_test=true so the
+   * test rate-limit query can find it; production calls leave this false.
+   */
+  isTest?: boolean;
+  /** Who triggered the call (test calls only); null for production calls. */
+  actorId?: string | null;
 };
 
 export type LlmCallResult =
@@ -136,6 +143,8 @@ export async function llmCall(
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
         success: true,
+        isTest: opts.isTest ?? false,
+        actorId: opts.actorId ?? null,
       });
       return { ok: true, text: result.text, modelUsed: link.model, wasFallback: link.tier };
     }
@@ -150,6 +159,8 @@ export async function llmCall(
       outputTokens: null,
       success: false,
       errorMessage: result.error,
+      isTest: opts.isTest ?? false,
+      actorId: opts.actorId ?? null,
     });
   }
 
@@ -176,6 +187,8 @@ async function logCall(params: {
   outputTokens: number | null;
   success: boolean;
   errorMessage?: string;
+  isTest: boolean;
+  actorId: string | null;
 }): Promise<void> {
   const admin = createAdminClient();
   await admin.from("llm_call_logs").insert({
@@ -188,5 +201,31 @@ async function logCall(params: {
     cost_usd: null, // computed in a follow-up when we wire model price lookup
     success: params.success,
     error_message: params.errorMessage ?? null,
+    was_test: params.isTest,
+    actor_id: params.actorId,
   });
+}
+
+const TEST_CALLS_PER_MINUTE = 10;
+
+/**
+ * Sliding-window rate limit for admin test calls (PRD §14.8).
+ * Counts test calls by this admin in the last 60s and rejects if too many.
+ */
+export async function isTestRateLimited(
+  actorId: string
+): Promise<{ limited: boolean; remaining: number }> {
+  const admin = createAdminClient();
+  const since = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await admin
+    .from("llm_call_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("was_test", true)
+    .eq("actor_id", actorId)
+    .gte("created_at", since);
+  const used = count ?? 0;
+  return {
+    limited: used >= TEST_CALLS_PER_MINUTE,
+    remaining: Math.max(0, TEST_CALLS_PER_MINUTE - used),
+  };
 }
