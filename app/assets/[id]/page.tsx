@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   COUNTRY_LABELS,
   COUNTRY_ORDER,
   type Currency,
@@ -17,6 +18,7 @@ import {
   archiveAsset,
   deleteBalance,
   unarchiveAsset,
+  updateAssetDetails,
   updateBalance,
 } from "./actions";
 import {
@@ -114,7 +116,55 @@ export default async function AssetDetailPage({
           />
         )}
 
-        <section className="mt-16 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+        {!asset.archived ? (
+          <section className="mt-16 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+            <h2 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Edit asset
+            </h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              Rename or fix the category. Switching to or from real estate
+              adds or removes its property record; balance history is kept.
+            </p>
+            <form
+              action={updateAssetDetails}
+              className="mt-3 flex flex-wrap items-end gap-3"
+            >
+              <input type="hidden" name="asset_id" value={asset.id} />
+              <label className="block text-sm text-neutral-600 dark:text-neutral-400">
+                Name
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  defaultValue={asset.name}
+                  className="mt-1 block w-64 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
+                />
+              </label>
+              <label className="block text-sm text-neutral-600 dark:text-neutral-400">
+                Category
+                <select
+                  name="category"
+                  defaultValue={asset.category}
+                  className="mt-1 block w-48 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:focus:border-neutral-100"
+                >
+                  {CATEGORY_ORDER.map((c) => (
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
+              >
+                Save
+              </button>
+            </form>
+          </section>
+        ) : null}
+
+        <section className="mt-12 border-t border-neutral-200 pt-6 dark:border-neutral-800">
           <h2 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             {asset.archived ? "Restore asset" : "Archive asset"}
           </h2>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { uploadDocument } from "@/lib/documents";
+import { CATEGORY_ORDER } from "@/lib/types";
 
 function failBalance(assetId: string, message: string): never {
   redirect(`/assets/${assetId}?error=${encodeURIComponent(message)}`);
@@ -65,6 +66,61 @@ export async function addBalance(formData: FormData) {
   revalidatePath(`/assets/${assetId}`);
   revalidatePath("/dashboard");
   redirect(`/assets/${assetId}`);
+}
+
+export async function updateAssetDetails(formData: FormData) {
+  const assetId = String(formData.get("asset_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
+
+  if (!assetId) redirect("/dashboard");
+  if (!name) failBalance(assetId, "Name is required.");
+  if (!(CATEGORY_ORDER as string[]).includes(category)) {
+    failBalance(assetId, "Pick a valid category.");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: current } = await supabase
+    .from("assets")
+    .select("category")
+    .eq("id", assetId)
+    .maybeSingle();
+  if (!current) failBalance(assetId, "Asset not found.");
+  const oldCategory = current!.category as string;
+
+  const { error } = await supabase
+    .from("assets")
+    .update({ name, category })
+    .eq("id", assetId);
+  if (error) failBalance(assetId, `Could not update: ${error.message}`);
+
+  // Real estate is the one category backed by a 1:1 properties row. Keep that
+  // record consistent with the category, while always preserving balance
+  // history (it lives on the asset, not the property).
+  if (category === "real_estate" && oldCategory !== "real_estate") {
+    const { data: existingProp } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("asset_id", assetId)
+      .maybeSingle();
+    if (!existingProp) {
+      // address is NOT NULL; seed it with the name so the user can refine it
+      // on the property page.
+      await supabase.from("properties").insert({ asset_id: assetId, address: name });
+    }
+  } else if (oldCategory === "real_estate" && category !== "real_estate") {
+    // Drop the now-irrelevant property record; valuations cascade, balances stay.
+    await supabase.from("properties").delete().eq("asset_id", assetId);
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/dashboard");
+  redirect(`/assets/${assetId}?ok=${encodeURIComponent("Asset updated.")}`);
 }
 
 export async function updateBalance(formData: FormData) {
