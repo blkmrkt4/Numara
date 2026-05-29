@@ -28,7 +28,12 @@ type AssetRow = {
   latest: { amount: string; as_of_date: string } | null;
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ snapshot?: string }>;
+}) {
+  const { snapshot: snapshotResult } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -213,7 +218,7 @@ export default async function DashboardPage() {
           <>
             <AlertsStrip assets={assets} />
 
-            {timeseries && timeseries.months.length >= 2 ? (
+            {timeseries ? (
               <section className="mt-10">
                 <WealthChart data={timeseries} privacy={privacy} />
               </section>
@@ -241,10 +246,20 @@ export default async function DashboardPage() {
                 Snapshots
               </h2>
               <p className="mt-1 text-xs text-neutral-500">
+                The chart above already updates automatically from your entries —
+                snapshots aren&apos;t needed for it. A snapshot just records an
+                optional point-in-time copy of your totals.{" "}
                 {snapshots.length === 0
-                  ? "No snapshots yet. Take one to start a history."
-                  : `${snapshots.length} snapshot${snapshots.length === 1 ? "" : "s"} on file. Auto-monthly snapshots arrive when this is deployed; until then take them manually.`}
+                  ? "None on file yet."
+                  : `${snapshots.length} on file.`}{" "}
+                Auto-monthly snapshots arrive once a cron is wired up; until then
+                take them manually.
               </p>
+              {snapshotResult === "ok" ? (
+                <p className="mt-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+                  Snapshot saved.
+                </p>
+              ) : null}
               <form action={snapshotNow} className="mt-3">
                 <button
                   type="submit"

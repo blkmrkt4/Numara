@@ -18,7 +18,7 @@ import {
 export type Dimension = "category" | "country" | "currency";
 
 export type SeriesPoint = {
-  month: string; // YYYY-MM
+  date: string; // YYYY-MM-DD
   groups: Record<string, number>; // signed display-currency value (liabilities negative)
 };
 
@@ -40,8 +40,8 @@ export type AssetCagr = {
 
 export type WealthTimeseries = {
   currency: Currency;
-  months: string[];
-  totals: number[]; // net worth per month, display currency
+  dates: string[]; // x-axis points, YYYY-MM-DD
+  totals: number[]; // net worth per point, display currency
   byCategory: DimensionSeries;
   byCountry: DimensionSeries;
   byCurrency: DimensionSeries;
@@ -61,7 +61,7 @@ type AssetMeta = {
 type Balance = { amount: number; as_of_date: string };
 
 const UNKNOWN_COUNTRY = "ZZ";
-const MAX_MONTHS = 24;
+const MAX_POINTS = 60;
 
 export async function buildWealthTimeseries(
   householdId: string,
@@ -122,18 +122,26 @@ export async function buildWealthTimeseries(
 
   const fx = await loadFxHistory(admin, earliest);
 
-  // Month buckets from first activity to the current month, capped at the
-  // most recent MAX_MONTHS.
-  let months = monthRange(earliest.slice(0, 7), todayMonth());
-  if (months.length > MAX_MONTHS) months = months.slice(months.length - MAX_MONTHS);
+  // X-axis points: every distinct as-of date present across the portfolio,
+  // plus today so the series always ends "now". Carry-forward applies between
+  // points (latest balance on-or-before each date). Capped to the most recent
+  // MAX_POINTS. Using actual entry dates — not fixed monthly buckets — means
+  // the chart appears as soon as there are two entries on different days,
+  // and every captured balance becomes a visible inflection point.
+  const today = new Date().toISOString().slice(0, 10);
+  const distinct = new Set<string>([today]);
+  for (const arr of balancesByAsset.values()) {
+    for (const b of arr) distinct.add(b.as_of_date);
+  }
+  let dates = [...distinct].sort();
+  if (dates.length > MAX_POINTS) dates = dates.slice(dates.length - MAX_POINTS);
 
-  const catSeries = emptySeries();
-  const countrySeries = emptySeries();
-  const ccySeries = emptySeries();
+  const catSeries: SeriesPoint[] = [];
+  const countrySeries: SeriesPoint[] = [];
+  const ccySeries: SeriesPoint[] = [];
   const totals: number[] = [];
 
-  for (const month of months) {
-    const asOf = monthEndIso(month);
+  for (const asOf of dates) {
     const cat: Record<string, number> = {};
     const country: Record<string, number> = {};
     const ccy: Record<string, number> = {};
@@ -152,9 +160,9 @@ export async function buildWealthTimeseries(
       total += signed;
     }
 
-    catSeries.push({ month, groups: cat });
-    countrySeries.push({ month, groups: country });
-    ccySeries.push({ month, groups: ccy });
+    catSeries.push({ date: asOf, groups: cat });
+    countrySeries.push({ date: asOf, groups: country });
+    ccySeries.push({ date: asOf, groups: ccy });
     totals.push(total);
   }
 
@@ -184,11 +192,12 @@ export async function buildWealthTimeseries(
     });
   }
 
-  const totalSpanYears = (months.length - 1) / 12;
+  const totalSpanYears =
+    dates.length >= 2 ? daysBetween(dates[0], dates[dates.length - 1]) / 365.25 : 0;
 
   return {
     currency,
-    months,
+    dates,
     totals,
     byCategory: finalizeSeries("category", catSeries, currency),
     byCountry: finalizeSeries("country", countrySeries, currency),
@@ -233,10 +242,6 @@ function labelFor(dim: Dimension, key: string): string {
   return COUNTRY_LABELS[key] ?? key;
 }
 
-function emptySeries(): SeriesPoint[] {
-  return [];
-}
-
 // ── FX history ──────────────────────────────────────────────────────────
 
 type FxHistory = {
@@ -279,33 +284,6 @@ async function loadFxHistory(
 }
 
 // ── small date / math helpers ─────────────────────────────────────────────
-
-function todayMonth(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
-function monthRange(startMonth: string, endMonth: string): string[] {
-  const out: string[] = [];
-  let [y, m] = startMonth.split("-").map(Number);
-  const [ey, em] = endMonth.split("-").map(Number);
-  while (y < ey || (y === ey && m <= em)) {
-    out.push(`${y}-${String(m).padStart(2, "0")}`);
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
-  }
-  return out;
-}
-
-function monthEndIso(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate(); // day 0 of next month = last of this
-  const today = new Date().toISOString().slice(0, 10);
-  const iso = `${month}-${String(last).padStart(2, "0")}`;
-  return iso > today ? today : iso; // don't read the future for the current month
-}
 
 function latestOnOrBefore(balances: Balance[] | undefined, asOf: string): number | null {
   if (!balances || balances.length === 0) return null;

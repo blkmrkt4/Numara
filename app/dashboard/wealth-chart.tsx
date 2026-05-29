@@ -32,8 +32,8 @@ export function WealthChart({
         ? data.byCountry
         : data.byCurrency;
 
-  const months = data.months;
-  const n = months.length;
+  const dates = data.dates;
+  const n = dates.length;
 
   const W = 860;
   const H = 380;
@@ -84,10 +84,17 @@ export function WealthChart({
 
   if (n < 2) {
     return (
-      <p className="text-sm text-neutral-500">
-        Not enough history yet — add balances across at least two months to see
-        the trend.
-      </p>
+      <div>
+        <h2 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          Composition over time
+        </h2>
+        <p className="mt-2 rounded-md border border-dashed border-neutral-300 px-4 py-6 text-sm text-neutral-500 dark:border-neutral-700">
+          The chart appears once you have balances dated on at least two
+          different days — it builds straight from your entries, so no snapshot
+          is needed. Add another balance (or edit one to an earlier date) to see
+          it.
+        </p>
+      </div>
     );
   }
 
@@ -120,7 +127,7 @@ export function WealthChart({
   const firstTotal = stack.totalLine[0];
 
   const xLabelIdx =
-    n <= 3 ? months.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
+    n <= 3 ? dates.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
 
   return (
     <div>
@@ -263,7 +270,7 @@ export function WealthChart({
               fill="currentColor"
               fillOpacity="0.55"
             >
-              {formatMonth(months[i])}
+              {formatDatePoint(dates[i])}
             </text>
           ))}
         </svg>
@@ -379,10 +386,11 @@ function fmtCagr(pct: number | null): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%/yr`;
 }
 
-function formatMonth(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  if (!y || !m) return month;
-  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", {
+function formatDatePoint(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
+    day: "2-digit",
     month: "short",
     year: "2-digit",
   });

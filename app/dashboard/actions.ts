@@ -45,4 +45,5 @@ export async function snapshotNow() {
 
   await computeAndStoreSnapshot(profile.household_id, undefined, "manual");
   revalidatePath("/dashboard");
+  redirect("/dashboard?snapshot=ok");
 }
