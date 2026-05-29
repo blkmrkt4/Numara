@@ -129,6 +129,16 @@ export function WealthChart({
   const xLabelIdx =
     n <= 3 ? dates.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
 
+  // Total-value flags at ~5 evenly-spaced points (always incl. first + last),
+  // so intermediate dates carry a value too — not just the endpoints.
+  const step = Math.max(1, Math.floor((n - 1) / 4));
+  const totalLabelIdx: number[] = [];
+  for (let i = 0; i < n - 1; i += step) totalLabelIdx.push(i);
+  if (totalLabelIdx.length && n - 1 - totalLabelIdx[totalLabelIdx.length - 1] < step) {
+    totalLabelIdx.pop();
+  }
+  totalLabelIdx.push(n - 1);
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -206,8 +216,8 @@ export function WealthChart({
             strokeOpacity="0.7"
           />
 
-          {/* total lollipops: first + last */}
-          {[0, n - 1].map((i) => {
+          {/* total-value flags at evenly-spaced points (incl. first + last) */}
+          {totalLabelIdx.map((i) => {
             const t = stack.totalLine[i];
             return (
               <g key={`tot-${i}`}>
@@ -223,7 +233,7 @@ export function WealthChart({
                 <text
                   x={xAt(i)}
                   y={yAt(t) - 8}
-                  textAnchor={i === 0 ? "start" : "end"}
+                  textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}
                   fontSize="12"
                   fontWeight="600"
                   fontFamily="ui-monospace, monospace"
