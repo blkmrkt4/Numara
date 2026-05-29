@@ -81,6 +81,102 @@ export async function addValuation(formData: FormData) {
 }
 
 /**
+ * Edit an existing valuation. Keeps the synthetic balance_entry in lock-step
+ * so the dashboard's market value and the valuation history never diverge.
+ */
+export async function updateValuation(formData: FormData) {
+  const assetId = String(formData.get("asset_id") ?? "");
+  const valuationId = String(formData.get("valuation_id") ?? "");
+  const amountRaw = String(formData.get("estimated_value") ?? "").trim();
+  const asOfDate = String(formData.get("as_of_date") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim() || null;
+
+  if (!assetId) redirect("/dashboard");
+  if (!valuationId) fail(assetId, "Missing valuation to edit.");
+  if (!amountRaw) fail(assetId, "Estimated value is required.");
+  if (!asOfDate) fail(assetId, "Date is required.");
+
+  const amount = Number(amountRaw.replace(/,/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    fail(assetId, "Estimated value must be a positive number.");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) fail(assetId, "Invalid date.");
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (new Date(asOfDate) > today) fail(assetId, "Date cannot be in the future.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing } = await supabase
+    .from("property_valuations")
+    .select("balance_entry_id")
+    .eq("id", valuationId)
+    .maybeSingle();
+
+  const { error: valErr } = await supabase
+    .from("property_valuations")
+    .update({ estimated_value: amount.toFixed(4), as_of_date: asOfDate, note })
+    .eq("id", valuationId);
+  if (valErr) fail(assetId, `Could not update valuation: ${valErr.message}`);
+
+  if (existing?.balance_entry_id) {
+    await supabase
+      .from("balance_entries")
+      .update({
+        amount: amount.toFixed(4),
+        as_of_date: asOfDate,
+        manually_edited: true,
+      })
+      .eq("id", existing.balance_entry_id);
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/dashboard");
+  redirect(`/assets/${assetId}?ok=${encodeURIComponent("Valuation updated.")}`);
+}
+
+/**
+ * Delete a valuation and its linked synthetic balance_entry together, so a
+ * removed market-value estimate also stops feeding the dashboard total.
+ */
+export async function deleteValuation(formData: FormData) {
+  const assetId = String(formData.get("asset_id") ?? "");
+  const valuationId = String(formData.get("valuation_id") ?? "");
+  if (!assetId) redirect("/dashboard");
+  if (!valuationId) fail(assetId, "Missing valuation to delete.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing } = await supabase
+    .from("property_valuations")
+    .select("balance_entry_id")
+    .eq("id", valuationId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("property_valuations")
+    .delete()
+    .eq("id", valuationId);
+  if (error) fail(assetId, `Could not delete valuation: ${error.message}`);
+
+  if (existing?.balance_entry_id) {
+    await supabase.from("balance_entries").delete().eq("id", existing.balance_entry_id);
+  }
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/dashboard");
+  redirect(`/assets/${assetId}?ok=${encodeURIComponent("Valuation deleted.")}`);
+}
+
+/**
  * Save edits to the Property row: address, country, purchase fields,
  * mortgage linkage. Sale-cost overrides live in their own action.
  */

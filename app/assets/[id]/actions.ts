@@ -67,6 +67,77 @@ export async function addBalance(formData: FormData) {
   redirect(`/assets/${assetId}`);
 }
 
+export async function updateBalance(formData: FormData) {
+  const assetId = String(formData.get("asset_id") ?? "");
+  const balanceId = String(formData.get("balance_id") ?? "");
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  const asOfDate = String(formData.get("as_of_date") ?? "").trim();
+
+  if (!assetId) redirect("/dashboard");
+  if (!balanceId) failBalance(assetId, "Missing entry to edit.");
+  if (!amountRaw) failBalance(assetId, "Amount is required.");
+  if (!asOfDate) failBalance(assetId, "Date is required.");
+
+  const amount = Number(amountRaw.replace(/,/g, ""));
+  if (!Number.isFinite(amount)) failBalance(assetId, "Amount must be a number.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) failBalance(assetId, "Invalid date.");
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (new Date(asOfDate) > today) failBalance(assetId, "Date cannot be in the future.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase
+    .from("balance_entries")
+    .update({
+      amount: amount.toFixed(4),
+      as_of_date: asOfDate,
+      manually_edited: true,
+    })
+    .eq("id", balanceId)
+    .eq("asset_id", assetId);
+
+  if (error) failBalance(assetId, `Could not update: ${error.message}`);
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/dashboard");
+  redirect(`/assets/${assetId}?ok=${encodeURIComponent("Balance entry updated.")}`);
+}
+
+export async function deleteBalance(formData: FormData) {
+  const assetId = String(formData.get("asset_id") ?? "");
+  const balanceId = String(formData.get("balance_id") ?? "");
+  if (!assetId) redirect("/dashboard");
+  if (!balanceId) failBalance(assetId, "Missing entry to delete.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Scope to the asset as well as the id: the RLS policy already restricts
+  // this to the household's own assets, but matching asset_id keeps a stray
+  // id from another asset from ever being targeted. The linked document (if
+  // any) is intentionally left in place — it stays available from /capture
+  // and is cheap to keep; only the balance row is removed.
+  const { error } = await supabase
+    .from("balance_entries")
+    .delete()
+    .eq("id", balanceId)
+    .eq("asset_id", assetId);
+
+  if (error) failBalance(assetId, `Could not delete: ${error.message}`);
+
+  revalidatePath(`/assets/${assetId}`);
+  revalidatePath("/dashboard");
+  redirect(`/assets/${assetId}?ok=${encodeURIComponent("Balance entry deleted.")}`);
+}
+
 export async function archiveAsset(formData: FormData) {
   const assetId = String(formData.get("asset_id") ?? "");
   if (!assetId) redirect("/dashboard");

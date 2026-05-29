@@ -12,19 +12,31 @@ import { formatDate, formatMoney, isStale, relativeAge, todayIso } from "@/lib/f
 import { ACCEPT_ATTRIBUTE } from "@/lib/document-constants";
 import { getSignedDocumentUrl } from "@/lib/documents";
 import { readPrivacyMode } from "@/lib/privacy";
-import { addBalance, archiveAsset, unarchiveAsset } from "./actions";
-import { addValuation, updateProperty } from "./property-actions";
+import {
+  addBalance,
+  archiveAsset,
+  deleteBalance,
+  unarchiveAsset,
+  updateBalance,
+} from "./actions";
+import {
+  addValuation,
+  deleteValuation,
+  updateProperty,
+  updateValuation,
+} from "./property-actions";
 import { SaleScenarioPanel } from "./sale-scenario";
+import { ConfirmSubmit } from "./confirm-submit";
 
 export default async function AssetDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; ok?: string }>;
+  searchParams: Promise<{ error?: string; ok?: string; edit?: string }>;
 }) {
   const { id } = await params;
-  const { error: errorParam, ok: okParam } = await searchParams;
+  const { error: errorParam, ok: okParam, edit: editId } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -90,6 +102,7 @@ export default async function AssetDetailPage({
             currency={currency}
             archived={asset.archived}
             privacy={privacy}
+            editId={editId ?? null}
           />
         ) : (
           <StandardAssetView
@@ -97,6 +110,7 @@ export default async function AssetDetailPage({
             currency={currency}
             archived={asset.archived}
             privacy={privacy}
+            editId={editId ?? null}
           />
         )}
 
@@ -169,17 +183,19 @@ async function StandardAssetView({
   currency,
   archived,
   privacy,
+  editId,
 }: {
   assetId: string;
   currency: Currency;
   archived: boolean;
   privacy: boolean;
+  editId: string | null;
 }) {
   const supabase = await createClient();
 
   const { data: balances } = await supabase
     .from("balance_entries")
-    .select("id, amount, as_of_date, source, source_document_id, created_at")
+    .select("id, amount, as_of_date, source, source_document_id, manually_edited, created_at")
     .eq("asset_id", assetId)
     .order("as_of_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -290,6 +306,55 @@ async function StandardAssetView({
           <ul className="mt-3 divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
             {balances.map((b) => {
               const doc = b.source_document_id ? docMap.get(b.source_document_id) : null;
+
+              if (editId === b.id && !archived) {
+                return (
+                  <li key={b.id} className="px-4 py-3">
+                    <form
+                      action={updateBalance}
+                      className="flex flex-wrap items-end gap-3"
+                    >
+                      <input type="hidden" name="asset_id" value={assetId} />
+                      <input type="hidden" name="balance_id" value={b.id} />
+                      <label className="block text-xs text-neutral-500">
+                        Amount ({currency})
+                        <input
+                          type="text"
+                          name="amount"
+                          required
+                          inputMode="decimal"
+                          defaultValue={Number(b.amount).toString()}
+                          className="mt-1 block w-40 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm tabular outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100"
+                        />
+                      </label>
+                      <label className="block text-xs text-neutral-500">
+                        As of
+                        <input
+                          type="date"
+                          name="as_of_date"
+                          required
+                          defaultValue={b.as_of_date}
+                          max={todayIso()}
+                          className="mt-1 block w-40 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
+                      >
+                        Save
+                      </button>
+                      <Link
+                        href={`/assets/${assetId}`}
+                        className="px-2 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+                      >
+                        Cancel
+                      </Link>
+                    </form>
+                  </li>
+                );
+              }
+
               return (
                 <li
                   key={b.id}
@@ -304,22 +369,48 @@ async function StandardAssetView({
                       {b.source === "manual" ? (
                         <span className="ml-2 text-neutral-400">· manual</span>
                       ) : null}
+                      {b.manually_edited ? (
+                        <span className="ml-2 text-neutral-400">· edited</span>
+                      ) : null}
                     </p>
                   </div>
-                  {doc ? (
-                    doc.url ? (
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-neutral-600 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-                      >
-                        {doc.file_name}
-                      </a>
-                    ) : (
-                      <span className="text-xs text-neutral-400">{doc.file_name}</span>
-                    )
-                  ) : null}
+                  <div className="flex items-baseline gap-4">
+                    {doc ? (
+                      doc.url ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-neutral-600 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                        >
+                          {doc.file_name}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-neutral-400">{doc.file_name}</span>
+                      )
+                    ) : null}
+                    {!archived ? (
+                      <>
+                        <Link
+                          href={`/assets/${assetId}?edit=${b.id}`}
+                          className="text-xs text-neutral-400 transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
+                        >
+                          Edit
+                        </Link>
+                        <form action={deleteBalance}>
+                          <input type="hidden" name="asset_id" value={assetId} />
+                          <input type="hidden" name="balance_id" value={b.id} />
+                          <ConfirmSubmit
+                            message="Delete this balance entry? This can't be undone."
+                            ariaLabel={`Delete balance from ${formatDate(b.as_of_date)}`}
+                            className="text-xs text-neutral-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                          >
+                            Delete
+                          </ConfirmSubmit>
+                        </form>
+                      </>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
@@ -341,11 +432,13 @@ async function PropertyView({
   currency,
   archived,
   privacy,
+  editId,
 }: {
   assetId: string;
   currency: Currency;
   archived: boolean;
   privacy: boolean;
+  editId: string | null;
 }) {
   const supabase = await createClient();
 
@@ -588,22 +681,102 @@ async function PropertyView({
         </h2>
         {valuations.length > 0 ? (
           <ul className="mt-3 divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-            {valuations.map((v) => (
-              <li
-                key={v.id}
-                className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
-              >
-                <div>
-                  <p className="tabular text-base font-medium text-neutral-900 dark:text-neutral-100">
-                    {formatMoney(v.estimated_value, currency, privacy)}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    {formatDate(v.as_of_date)}
-                    {v.note ? <span className="ml-2 italic">· {v.note}</span> : null}
-                  </p>
-                </div>
-              </li>
-            ))}
+            {valuations.map((v) => {
+              if (editId === v.id && !archived) {
+                return (
+                  <li key={v.id} className="px-4 py-3">
+                    <form
+                      action={updateValuation}
+                      className="flex flex-wrap items-end gap-3"
+                    >
+                      <input type="hidden" name="asset_id" value={assetId} />
+                      <input type="hidden" name="valuation_id" value={v.id} />
+                      <label className="block text-xs text-neutral-500">
+                        Value ({currency})
+                        <input
+                          type="text"
+                          name="estimated_value"
+                          required
+                          inputMode="decimal"
+                          defaultValue={Number(v.estimated_value).toString()}
+                          className="mt-1 block w-40 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm tabular outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100"
+                        />
+                      </label>
+                      <label className="block text-xs text-neutral-500">
+                        As of
+                        <input
+                          type="date"
+                          name="as_of_date"
+                          required
+                          defaultValue={v.as_of_date}
+                          max={todayIso()}
+                          className="mt-1 block w-40 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100"
+                        />
+                      </label>
+                      <label className="block text-xs text-neutral-500">
+                        Note
+                        <input
+                          type="text"
+                          name="note"
+                          defaultValue={v.note ?? ""}
+                          className="mt-1 block w-56 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
+                      >
+                        Save
+                      </button>
+                      <Link
+                        href={`/assets/${assetId}`}
+                        className="px-2 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+                      >
+                        Cancel
+                      </Link>
+                    </form>
+                  </li>
+                );
+              }
+
+              return (
+                <li
+                  key={v.id}
+                  className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="tabular text-base font-medium text-neutral-900 dark:text-neutral-100">
+                      {formatMoney(v.estimated_value, currency, privacy)}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {formatDate(v.as_of_date)}
+                      {v.note ? <span className="ml-2 italic">· {v.note}</span> : null}
+                    </p>
+                  </div>
+                  {!archived ? (
+                    <div className="flex items-baseline gap-4">
+                      <Link
+                        href={`/assets/${assetId}?edit=${v.id}`}
+                        className="text-xs text-neutral-400 transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
+                      >
+                        Edit
+                      </Link>
+                      <form action={deleteValuation}>
+                        <input type="hidden" name="asset_id" value={assetId} />
+                        <input type="hidden" name="valuation_id" value={v.id} />
+                        <ConfirmSubmit
+                          message="Delete this valuation? This can't be undone."
+                          ariaLabel={`Delete valuation from ${formatDate(v.as_of_date)}`}
+                          className="text-xs text-neutral-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                        >
+                          Delete
+                        </ConfirmSubmit>
+                      </form>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="mt-3 text-sm text-neutral-500">No valuations yet.</p>
